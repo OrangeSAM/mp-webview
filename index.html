@@ -1,382 +1,507 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>海报编辑器</title>
-  <!-- 引入微信JSSDK -->
-  <script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
-  <style>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>海报编辑器</title>
+    <style>
       * {
-          margin: 0;
-          padding: 0;
-          box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
       }
-      
+
       body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          background-color: #f5f5f5;
-          min-height: 100vh;
-          padding: 10px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        background-color: #f5f5f5;
+        min-height: 100vh;
+        padding: 10px;
       }
-      
+
       #loading {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          height: 100vh;
-          font-size: 16px;
-          color: #666;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        font-size: 16px;
+        color: #666;
       }
-      
+
       #editor-container {
-          background: white;
-          border-radius: 8px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-          min-height: 400px;
-          padding: 20px;
-          outline: none;
-          display: none;
-          /* 优化移动端编辑体验 */
-          -webkit-tap-highlight-color: transparent;
-          -webkit-touch-callout: none;
-          -webkit-user-select: text;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        min-height: 400px;
+        padding: 20px;
+        outline: none;
+        display: none;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+        -webkit-user-select: text;
       }
-      
-      /* 编辑状态提示 */
+
       .edit-hint {
-          position: fixed;
-          top: 10px;
-          left: 50%;
-          transform: translateX(-50%);
-          background: rgba(0, 122, 255, 0.9);
-          color: white;
-          padding: 8px 16px;
-          border-radius: 20px;
-          font-size: 14px;
-          z-index: 1000;
-          display: none;
+        position: fixed;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 122, 255, 0.9);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 14px;
+        z-index: 1000;
+        display: none;
       }
-      
-      /* 工具栏 */
+
       .toolbar {
-          position: fixed;
-          bottom: 20px;
-          left: 50%;
-          transform: translateX(-50%);
-          background: white;
-          padding: 10px 20px;
-          border-radius: 25px;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-          display: none;
-          z-index: 1000;
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: white;
+        padding: 10px 20px;
+        border-radius: 25px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        display: none;
+        z-index: 1000;
       }
-      
+
       .btn {
-          padding: 8px 16px;
-          margin: 0 5px;
-          border: none;
-          border-radius: 20px;
-          background: #007aff;
-          color: white;
-          font-size: 14px;
-          cursor: pointer;
-          transition: all 0.2s;
+        padding: 8px 16px;
+        margin: 0 5px;
+        border: none;
+        border-radius: 20px;
+        background: #007aff;
+        color: white;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s;
       }
-      
+
       .btn:hover {
-          background: #0056cc;
+        background: #0056cc;
       }
-      
+
       .btn.secondary {
-          background: #f0f0f0;
-          color: #333;
+        background: #f0f0f0;
+        color: #333;
       }
-      
+
       .btn.secondary:hover {
-          background: #e0e0e0;
+        background: #e0e0e0;
       }
-      
-      /* 错误提示 */
+
       .error-message {
-          background: #ffebee;
-          color: #c62828;
-          padding: 20px;
-          border-radius: 8px;
-          text-align: center;
-          margin: 20px;
-          display: none;
+        background: #ffebee;
+        color: #c62828;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+        margin: 20px;
+        display: none;
       }
-      
-      /* 优化编辑区域内的元素样式 */
+
+      .debug-info {
+        position: fixed;
+        top: 50px;
+        right: 10px;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        max-width: 200px;
+        z-index: 1001;
+        display: none;
+      }
+
       #editor-container * {
-          max-width: 100%;
+        max-width: 100%;
       }
-      
+
       #editor-container img {
-          height: auto;
-          border-radius: 4px;
+        height: auto;
+        border-radius: 4px;
       }
-      
-      /* 光标和选择样式优化 */
+
       #editor-container:focus {
-          outline: 2px solid #007aff;
-          outline-offset: 2px;
+        outline: 2px solid #007aff;
+        outline-offset: 2px;
       }
-      
-      /* 响应式调整 */
+
       @media (max-width: 480px) {
-          body {
-              padding: 5px;
-          }
-          
-          #editor-container {
-              padding: 15px;
-              border-radius: 4px;
-          }
-          
-          .toolbar {
-              bottom: 10px;
-              padding: 8px 15px;
-          }
-          
-          .btn {
-              padding: 6px 12px;
-              font-size: 13px;
-          }
+        body {
+          padding: 5px;
+        }
+
+        #editor-container {
+          padding: 15px;
+          border-radius: 4px;
+        }
+
+        .toolbar {
+          bottom: 10px;
+          padding: 8px 15px;
+        }
+
+        .btn {
+          padding: 6px 12px;
+          font-size: 13px;
+        }
       }
-  </style>
-</head>
-<body>
+    </style>
+  </head>
+  <body>
+    <div id="loading">正在加载内容...</div>
+    <div class="edit-hint" id="editHint">点击任意文字即可编辑</div>
+    <div class="error-message" id="errorMessage">
+      <p>加载失败，请检查网络连接后重试</p>
+    </div>
 
-<!-- 加载提示 -->
-<div id="loading">正在加载内容...</div>
+    <div id="editor-container" contenteditable="true"></div>
 
-<!-- 编辑提示 -->
-<div class="edit-hint" id="editHint">点击任意文字即可编辑</div>
+    <div class="toolbar" id="toolbar">
+      <button class="btn" onclick="saveContent()">保存修改</button>
+      <button class="btn secondary" onclick="cancelEdit()">取消</button>
+      <button class="btn secondary" onclick="resetContent()">重置</button>
+    </div>
 
-<!-- 错误提示 -->
-<div class="error-message" id="errorMessage">
-  <p>加载失败，请检查网络连接后重试</p>
-</div>
+    <div class="debug-info" id="debugInfo"></div>
 
-<!-- 编辑区域 -->
-<div id="editor-container" contenteditable="true">
-  <!-- 内容将通过JavaScript动态加载 -->
-</div>
+    <script>
+      // 全局变量
+      let originalHtml = "";
+      let hasChanges = false;
+      let isInitialized = false;
+      let wxReady = false;
 
-<!-- 工具栏 -->
-<div class="toolbar" id="toolbar">
-  <button class="btn" onclick="saveContent()">保存修改</button>
-  <button class="btn secondary" onclick="cancelEdit()">取消</button>
-  <button class="btn secondary" onclick="resetContent()">重置</button>
-</div>
+      // 页面元素
+      const loadingEl = document.getElementById("loading");
+      const editorEl = document.getElementById("editor-container");
+      const toolbarEl = document.getElementById("toolbar");
+      const editHintEl = document.getElementById("editHint");
+      const errorEl = document.getElementById("errorMessage");
+      const debugEl = document.getElementById("debugInfo");
 
-<script>
-  // 全局变量
-  let originalHtml = '';
-  let hasChanges = false;
-  let isInitialized = false;
-  
-  // 页面元素
-  const loadingEl = document.getElementById('loading');
-  const editorEl = document.getElementById('editor-container');
-  const toolbarEl = document.getElementById('toolbar');
-  const editHintEl = document.getElementById('editHint');
-  const errorEl = document.getElementById('errorMessage');
-  
-  // 初始化函数
-  function initEditor() {
-      try {
-          // 1. 从URL获取HTML内容
-          const urlParams = new URLSearchParams(window.location.search);
-          const encodedHtml = urlParams.get('content');
-          
-          if (!encodedHtml) {
-              throw new Error('未找到内容参数');
-          }
-          
-          // 2. 解码HTML内容
-          originalHtml = decodeURIComponent(encodedHtml);
-          
-          // 3. 将内容填充到编辑器
-          editorEl.innerHTML = originalHtml;
-          
-          // 4. 显示编辑器，隐藏加载提示
-          loadingEl.style.display = 'none';
-          editorEl.style.display = 'block';
-          toolbarEl.style.display = 'block';
-          editHintEl.style.display = 'block';
-          
-          // 5. 设置编辑器事件监听
-          setupEditorEvents();
-          
-          // 6. 3秒后隐藏提示
-          setTimeout(() => {
-              editHintEl.style.display = 'none';
-          }, 3000);
-          
-          isInitialized = true;
-          console.log('编辑器初始化成功');
-          
-      } catch (error) {
-          console.error('初始化失败:', error);
-          showError('初始化失败: ' + error.message);
+      // 调试信息显示
+      function updateDebugInfo(info) {
+        const timestamp = new Date().toLocaleTimeString();
+        debugEl.innerHTML += `<div>[${timestamp}] ${info}</div>`;
+        debugEl.style.display = "block";
+        console.log(`[调试] ${info}`);
       }
-  }
-  
-  // 设置编辑器事件监听
-  function setupEditorEvents() {
-      // 监听内容变化
-      editorEl.addEventListener('input', function() {
-          hasChanges = true;
-          
-          // 实时发送更新（可选，也可以只在保存时发送）
-          const updatedHtml = editorEl.innerHTML;
-          sendMessageToMiniProgram({
-              type: 'contentChanged',
-              html: updatedHtml,
-              hasChanges: true
-          });
-      });
-      
-      // 监听焦点事件
-      editorEl.addEventListener('focus', function() {
-          editHintEl.style.display = 'none';
-      });
-      
-      // 防止意外离开页面
-      window.addEventListener('beforeunload', function(e) {
-          if (hasChanges) {
-              e.preventDefault();
-              e.returnValue = '您有未保存的修改，确定要离开吗？';
+
+      // 检测环境
+      function detectEnvironment() {
+        const userAgent = navigator.userAgent;
+        const isWeChat = /MicroMessenger/i.test(userAgent);
+        const isMiniProgram = /miniProgram/i.test(userAgent);
+
+        updateDebugInfo(
+          `环境检测: WeChat=${isWeChat}, MiniProgram=${isMiniProgram}`
+        );
+        updateDebugInfo(`UserAgent: ${userAgent.substring(0, 50)}...`);
+
+        return { isWeChat, isMiniProgram };
+      }
+
+      // 动态加载微信JSSDK
+      function loadWxJSSDK() {
+        return new Promise((resolve, reject) => {
+          // 如果已经存在wx对象，直接resolve
+          if (typeof wx !== "undefined") {
+            updateDebugInfo("wx对象已存在");
+            resolve();
+            return;
           }
-      });
-  }
-  
-  // 保存内容
-  function saveContent() {
-      if (!isInitialized) {
-          alert('编辑器尚未初始化完成');
+
+          const script = document.createElement("script");
+
+          // 尝试多个CDN源
+          const cdnUrls = [
+            "https://res.wx.qq.com/open/js/jweixin-1.6.0.js",
+            "https://res2.wx.qq.com/open/js/jweixin-1.6.0.js",
+            "https://unpkg.com/weixin-js-sdk@1.6.0/index.js",
+            "https://cdn.jsdelivr.net/npm/weixin-js-sdk@1.6.0/index.js",
+          ];
+
+          let currentIndex = 0;
+
+          function tryLoad() {
+            if (currentIndex >= cdnUrls.length) {
+              updateDebugInfo("所有CDN源都加载失败");
+              reject(new Error("无法加载微信JSSDK"));
+              return;
+            }
+
+            const url = cdnUrls[currentIndex];
+            updateDebugInfo(`尝试加载: ${url}`);
+
+            script.src = url;
+            script.onload = () => {
+              updateDebugInfo(`JSSDK加载成功: ${url}`);
+              resolve();
+            };
+
+            script.onerror = () => {
+              updateDebugInfo(`JSSDK加载失败: ${url}`);
+              currentIndex++;
+              setTimeout(tryLoad, 100); // 短暂延迟后尝试下一个
+            };
+          }
+
+          tryLoad();
+          document.head.appendChild(script);
+        });
+      }
+
+      // 初始化微信JSSDK
+      async function initWxJSSDK() {
+        try {
+          await loadWxJSSDK();
+
+          if (typeof wx === "undefined") {
+            throw new Error("wx对象未定义");
+          }
+
+          // 配置wx.config（在实际环境中可能需要）
+          if (wx.config) {
+            wx.config({
+              debug: false,
+              appId: "", // 在实际使用中需要配置
+              timestamp: "",
+              nonceStr: "",
+              signature: "",
+              jsApiList: [],
+            });
+          }
+
+          // 等待wx.ready
+          if (wx.ready) {
+            wx.ready(() => {
+              updateDebugInfo("wx.ready 触发");
+              wxReady = true;
+              initEditor();
+            });
+
+            wx.error((err) => {
+              updateDebugInfo(`wx.error: ${JSON.stringify(err)}`);
+              // 即使出错也尝试初始化编辑器
+              initEditor();
+            });
+          } else {
+            updateDebugInfo("wx.ready 不存在，直接初始化");
+            wxReady = true;
+            initEditor();
+          }
+        } catch (error) {
+          updateDebugInfo(`JSSDK初始化失败: ${error.message}`);
+          // 降级处理：不使用微信JSSDK也能工作
+          initEditor();
+        }
+      }
+
+      // 初始化编辑器
+      function initEditor() {
+        if (isInitialized) {
+          updateDebugInfo("编辑器已初始化，跳过");
           return;
-      }
-      
-      try {
-          const updatedHtml = editorEl.innerHTML;
-          
-          // 发送保存成功消息给小程序
-          sendMessageToMiniProgram({
-              type: 'saveSuccess',
-              html: updatedHtml,
-              originalHtml: originalHtml,
-              hasChanges: hasChanges
-          });
-          
-          // 重置修改状态
-          hasChanges = false;
-          originalHtml = updatedHtml;
-          
-          // 显示保存成功提示
-          showTemporaryMessage('保存成功！', 'success');
-          
-      } catch (error) {
-          console.error('保存失败:', error);
-          sendMessageToMiniProgram({
-              type: 'saveError',
-              message: error.message
-          });
-      }
-  }
-  
-  // 取消编辑
-  function cancelEdit() {
-      if (hasChanges) {
-          if (confirm('您有未保存的修改，确定要取消吗？')) {
-              sendMessageToMiniProgram({
-                  type: 'cancel',
-                  hasChanges: hasChanges
-              });
+        }
+
+        try {
+          updateDebugInfo("开始初始化编辑器");
+
+          // 从URL获取HTML内容
+          const urlParams = new URLSearchParams(window.location.search);
+          const encodedHtml = urlParams.get("content");
+
+          if (!encodedHtml) {
+            throw new Error("未找到content参数");
           }
-      } else {
-          sendMessageToMiniProgram({
-              type: 'cancel',
-              hasChanges: false
-          });
+
+          updateDebugInfo(`获取到content参数，长度: ${encodedHtml.length}`);
+
+          // 解码HTML内容
+          originalHtml = decodeURIComponent(encodedHtml);
+          updateDebugInfo(`解码后HTML长度: ${originalHtml.length}`);
+
+          // 填充内容
+          editorEl.innerHTML = originalHtml;
+
+          // 显示编辑器
+          loadingEl.style.display = "none";
+          editorEl.style.display = "block";
+          toolbarEl.style.display = "block";
+          editHintEl.style.display = "block";
+
+          // 设置事件监听
+          setupEditorEvents();
+
+          // 隐藏提示
+          setTimeout(() => {
+            editHintEl.style.display = "none";
+          }, 3000);
+
+          isInitialized = true;
+          updateDebugInfo("编辑器初始化完成");
+        } catch (error) {
+          updateDebugInfo(`编辑器初始化失败: ${error.message}`);
+          showError("初始化失败: " + error.message);
+        }
       }
-  }
-  
-  // 重置内容
-  function resetContent() {
-      if (confirm('确定要重置到初始状态吗？所有修改将丢失。')) {
+
+      // 设置编辑器事件
+      function setupEditorEvents() {
+        editorEl.addEventListener("input", function () {
+          hasChanges = true;
+          const updatedHtml = editorEl.innerHTML;
+          sendMessageToMiniProgram({
+            type: "contentChanged",
+            html: updatedHtml,
+            hasChanges: true,
+          });
+        });
+
+        editorEl.addEventListener("focus", function () {
+          editHintEl.style.display = "none";
+        });
+
+        window.addEventListener("beforeunload", function (e) {
+          if (hasChanges) {
+            e.preventDefault();
+            e.returnValue = "您有未保存的修改，确定要离开吗？";
+          }
+        });
+      }
+
+      // 向小程序发送消息
+      function sendMessageToMiniProgram(data) {
+        updateDebugInfo(`准备发送消息: ${data.type}`);
+
+        if (
+          typeof wx !== "undefined" &&
+          wx.miniProgram &&
+          wx.miniProgram.postMessage
+        ) {
+          try {
+            wx.miniProgram.postMessage({ data: data });
+            updateDebugInfo(`消息发送成功: ${data.type}`);
+          } catch (error) {
+            updateDebugInfo(`消息发送失败: ${error.message}`);
+          }
+        } else {
+          updateDebugInfo(`非小程序环境，模拟消息: ${JSON.stringify(data)}`);
+        }
+      }
+
+      // 保存内容
+      function saveContent() {
+        if (!isInitialized) {
+          alert("编辑器尚未初始化完成");
+          return;
+        }
+
+        const updatedHtml = editorEl.innerHTML;
+        sendMessageToMiniProgram({
+          type: "saveSuccess",
+          html: updatedHtml,
+          originalHtml: originalHtml,
+          hasChanges: hasChanges,
+        });
+
+        hasChanges = false;
+        originalHtml = updatedHtml;
+        showTemporaryMessage("保存成功！", "success");
+      }
+
+      // 取消编辑
+      function cancelEdit() {
+        if (hasChanges) {
+          if (confirm("您有未保存的修改，确定要取消吗？")) {
+            sendMessageToMiniProgram({
+              type: "cancel",
+              hasChanges: hasChanges,
+            });
+          }
+        } else {
+          sendMessageToMiniProgram({
+            type: "cancel",
+            hasChanges: false,
+          });
+        }
+      }
+
+      // 重置内容
+      function resetContent() {
+        if (confirm("确定要重置到初始状态吗？所有修改将丢失。")) {
           editorEl.innerHTML = originalHtml;
           hasChanges = false;
-          showTemporaryMessage('已重置到初始状态', 'info');
+          showTemporaryMessage("已重置到初始状态", "info");
+        }
       }
-  }
-  
-  // 向小程序发送消息
-  function sendMessageToMiniProgram(data) {
-      if (typeof wx !== 'undefined' && wx.miniProgram) {
-          wx.miniProgram.postMessage({ data: data });
-          console.log('发送消息给小程序:', data);
-      } else {
-          console.log('非小程序环境，消息内容:', data);
+
+      // 显示错误
+      function showError(message) {
+        loadingEl.style.display = "none";
+        errorEl.querySelector("p").textContent = message;
+        errorEl.style.display = "block";
       }
-  }
-  
-  // 显示错误信息
-  function showError(message) {
-      loadingEl.style.display = 'none';
-      errorEl.querySelector('p').textContent = message;
-      errorEl.style.display = 'block';
-  }
-  
-  // 显示临时消息
-  function showTemporaryMessage(message, type = 'info') {
-      const messageEl = document.createElement('div');
-      messageEl.textContent = message;
-      messageEl.style.cssText = `
+
+      // 显示临时消息
+      function showTemporaryMessage(message, type = "info") {
+        const messageEl = document.createElement("div");
+        messageEl.textContent = message;
+        messageEl.style.cssText = `
           position: fixed;
           top: 50px;
           left: 50%;
           transform: translateX(-50%);
-          background: ${type === 'success' ? '#4caf50' : type === 'error' ? '#f44336' : '#2196f3'};
+          background: ${
+            type === "success"
+              ? "#4caf50"
+              : type === "error"
+              ? "#f44336"
+              : "#2196f3"
+          };
           color: white;
           padding: 12px 20px;
           border-radius: 4px;
           z-index: 2000;
           font-size: 14px;
       `;
-      
-      document.body.appendChild(messageEl);
-      
-      setTimeout(() => {
-          document.body.removeChild(messageEl);
-      }, 2000);
-  }
-  
-  // 微信JSSDK初始化
-  if (typeof wx !== 'undefined') {
-      wx.ready(function() {
-          console.log('微信JSSDK初始化完成');
-          initEditor();
-      });
-      
-      wx.error(function(err) {
-          console.error('微信JSSDK初始化失败:', err);
-          // 即使JSSDK失败，也尝试初始化编辑器（用于调试）
-          initEditor();
-      });
-  } else {
-      // 非微信环境，直接初始化（用于调试）
-      console.log('非微信环境，直接初始化');
-      initEditor();
-  }
-  
-  // 调试信息
-  console.log('编辑器页面加载完成');
-  console.log('当前URL:', window.location.href);
-</script>
 
-</body>
+        document.body.appendChild(messageEl);
+        setTimeout(() => {
+          if (document.body.contains(messageEl)) {
+            document.body.removeChild(messageEl);
+          }
+        }, 2000);
+      }
+
+      // 页面加载完成后开始初始化
+      document.addEventListener("DOMContentLoaded", function () {
+        updateDebugInfo("页面DOM加载完成");
+
+        // 检测环境
+        const env = detectEnvironment();
+
+        // 如果在微信环境中，尝试加载JSSDK
+        if (env.isWeChat) {
+          initWxJSSDK();
+        } else {
+          updateDebugInfo("非微信环境，直接初始化编辑器");
+          initEditor();
+        }
+      });
+
+      // 全局错误处理
+      window.addEventListener("error", function (e) {
+        updateDebugInfo(`全局错误: ${e.message}`);
+      });
+
+      updateDebugInfo("脚本加载完成");
+    </script>
+  </body>
 </html>
